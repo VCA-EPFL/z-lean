@@ -15,6 +15,7 @@ lean_lib «LinearCodes» where
 @[default_target]
 lean_lib «Upstream» where
 
+
 -- Research-facing scratch (`LinearCodes/Research/`). Built in CI so it
 -- catches API regressions, but excluded from the public umbrella
 -- `LinearCodes.lean` so downstream users don't transitively import it.
@@ -36,6 +37,9 @@ lean_lib «VectorCommitment» where
 lean_lib «PCP» where
 
 lean_lib «Kilian» where
+
+-- add default target later maybe
+lean_lib «GKR» where
 
 require "leanprover-community" / mathlib @ git "v4.30.0-rc2"
 -- Pinned to a specific rev (not `master`) so upstream churn doesn't break CI.
