@@ -1,6 +1,7 @@
 import GKR.Src.Circuit
 import Mathlib.Algebra.BigOperators.Group.Finset.Piecewise
 import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Fintype.Pi
 
 
 /--
@@ -11,8 +12,8 @@ theorem eval_layer_eq_sum
   (F : Type)[Field F]
   (c : Circuit k d)
   (l : Fin (d))
-  (W : Fin (2 ^ k) → F)
-  : ∀ z : Fin (2 ^ k) , evalLayer (c.gate l) W z =
+  (W : Index k → F)
+  : ∀ z : Index k , evalLayer (c.gate l) W z =
    ∑ x, ∑ y ,( (addPred F c l z x y) * (W x + W y) + (mulPred F c l z x y) * (W x * W y)) := by
   intro z
   cases h: c.gate l z with
@@ -51,8 +52,8 @@ theorem layer_values_eq_eval_layer
   (F: Type)[Field F]
   (c : Circuit k d)
   (l : Fin d)
-  (input : Fin (2^k) → F)
-  : ∀ z : Fin (2 ^ k), layerValues c input l.castSucc z
+  (input : Index k → F)
+  : ∀ z : Index k, layerValues c input l.castSucc z
     = evalLayer (c.gate l) (layerValues c input l.succ) z := by
   intro z
   induction d  with
@@ -78,8 +79,8 @@ theorem layer_values_eq_sum
   (F : Type)[Field F]
   (c : Circuit k d)
   (l : Fin d)
-  (input : Fin (2 ^ k) → F)
-  : ∀ z : Fin (2 ^ k), layerValues c input l.castSucc z =
+  (input : Index k → F)
+  : ∀ z : Index k, layerValues c input l.castSucc z =
   ∑ x, ∑ y, (addPred F c l z x y * (layerValues c input l.succ x
   + layerValues c input l.succ y) + mulPred F c l z x y * ((layerValues c input l.succ x) *layerValues c input l.succ y))
   := by
