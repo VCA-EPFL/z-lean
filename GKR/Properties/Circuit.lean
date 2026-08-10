@@ -44,7 +44,7 @@ theorem eval_layer_eq_sum
     . intro ha
       exact absurd (Finset.mem_univ a) ha
 
-/-
+/--
 Helper for layer_values_eq_sum
 -/
 theorem layer_values_eq_eval_layer
@@ -70,7 +70,6 @@ theorem layer_values_eq_eval_layer
       rw [← Fin.succ_castSucc , Fin.cons_succ]
       rw [Fin.cons_succ] -- we can go on without this
       apply ih c.tail x
-
 
 
 
