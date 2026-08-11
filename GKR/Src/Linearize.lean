@@ -579,4 +579,29 @@ theorem degreeOf_linearizeAll_le_one : ∀ {n : ℕ} (p : CMvPolynomial n 𝔽)
     show ((List.finRange _).foldl (fun q i => linearize_i i q) p).degreeOf j ≤ 1
     exact degreeOf_foldl_linearize_i_mem_le_one _ p j (List.mem_finRange j)
 
+/--
+Helper : for finishing the proof of multilinear_eq_zero_on_hypercube_is_zero_polynomial
+-/
+lemma linearize0_eq_self_of_degreeOf_le_one
+    (p : CMvPolynomial (n + 1) 𝔽) (hp : p.degreeOf 0 ≤ 1) : linearize0 p = p := by
+    have hC0 : (CMvPolynomial.C (0:𝔽) : CMvPolynomial n 𝔽) = 0 := rfl
+    have hC1 : (CMvPolynomial.C (1:𝔽) : CMvPolynomial n 𝔽) = 1 := by
+      apply CPoly.fromCMvPolynomial_injective
+      simp [CMvPolynomial.fromCMvPolynomial_C]
+    have hnd : (CMvPolynomial.finSuccEquiv p).natDegree ≤ 1 := by
+      rw [natDegree_finSuccEquiv_c]; exact hp
+    obtain ⟨a, b, hab⟩ := Polynomial.exists_eq_X_add_C_of_natDegree_le_one hnd
+    have hs0 : specialize0 p 0 = b := by
+      show (CMvPolynomial.finSuccEquiv p).eval (CMvPolynomial.C 0) = b
+      rw [hab, hC0]; simp
+    have hs1 : specialize0 p 1 = a + b := by
+      show (CMvPolynomial.finSuccEquiv p).eval (CMvPolynomial.C 1) = a + b
+      rw [hab, hC1]; simp
+    unfold linearize0
+    rw [hs0, hs1]
+    apply CMvPolynomial.finSuccEquiv.injective
+    rw [CMvPolynomial.finSuccEquiv_apply_symm_apply, hab]
+    simp only [Polynomial.C_add]
+    ring
+
 end CPoly.CMvPolynomial

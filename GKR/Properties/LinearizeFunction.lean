@@ -1,6 +1,6 @@
 import GKR.Src.Circuit
 import GKR.Src.LinearizeFunction
-
+import GKR.Src.Linearize
 
 namespace CPoly.CMvPolynomial
 
@@ -119,5 +119,120 @@ theorem degreeOf_linearizeFunction_le_one
     (linearizeFunction f).degreeOf i ≤ 1 := by
   unfold linearizeFunction
   exact degreeOf_linearizeAll_le_one _ i
+
+/--
+A helper lemma used for the proof of the below thing
+-/
+lemma toPoint_cons {n : ℕ} {F : Type} [Field F] (b : Bool) (x : Index n) :
+    toPoint (F := F) (Fin.cons b x) = Fin.cons (if b then 1 else 0) (toPoint x) := by
+  funext i
+  induction i using Fin.cases with
+  | zero => simp [toPoint]
+  | succ j => simp [toPoint]
+
+/--
+We need this for proving that our multilinear extension is unique
+-/
+theorem multilinear_eq_zero_on_hypercube_is_zero_polynomial
+{k : ℕ}
+{F : Type} [Field F] [BEq F] [LawfulBEq F]
+(p : CMvPolynomial k F)
+(hdeg : ∀ i, p.degreeOf i ≤ 1)
+(h : ∀ x : Index k, eval (toPoint x ) p = 0)
+: p = 0 := by
+induction k with
+| zero =>
+  have h0 := h (fun i => i.elim0)
+  -- bridge between CompPoly's polynomial and mathlibs polynomial
+  rw [CPoly.eval_equiv] at h0
+  apply CPoly.fromCMvPolynomial_injective
+  rw [map_zero]
+  obtain ⟨c, hc⟩ :=
+  (MvPolynomial.isEmptyRingEquiv F (Fin 0)).symm.surjective (fromCMvPolynomial p)
+  rw [← hc] at h0 ⊢
+  rw [MvPolynomial.isEmptyRingEquiv_symm_apply] at h0 ⊢
+  rw [MvPolynomial.eval_C] at h0
+  rw [h0]
+  simp
+-- TODO: get rid of the code duplication here
+| succ n ih =>
+  have slice0 : specialize0 p 0 = 0 := by
+    apply ih
+    . intro i
+      apply le_trans  (degreeOf_specialize0_succ_le p 0 i)
+      exact hdeg i.succ
+    . intro x
+      rw [eval_specialize0]
+      have hx := h (Fin.cons false x)
+      rw [toPoint_cons] at hx
+      simpa using hx
+  have slice1  : specialize0 p 1 = 0 := by
+    apply ih
+    . intro i
+      apply le_trans  (degreeOf_specialize0_succ_le p 1 i)
+      exact hdeg i.succ
+    . intro x
+      rw [eval_specialize0]
+      have hx := h (Fin.cons true x)
+      rw [toPoint_cons] at hx
+      simpa using hx
+  have hrec : linearize0 p = p := linearize0_eq_self_of_degreeOf_le_one p (hdeg 0)
+  rw [← hrec]
+  unfold linearize0
+  rw [slice0, slice1]
+  simp
+
+/--
+Bridge from CMv's polynomial to the mathlibs one
+-/
+lemma degreeOf_sub_le_max
+{k : ℕ}
+{F : Type} [Field F] [BEq F] [LawfulBEq F]
+(p q : CMvPolynomial k F) (i : Fin k) :
+degreeOf i (p - q) ≤ max (degreeOf i p) (degreeOf i q) := by
+rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := p - q)) i,
+congrFun (CPoly.degreeOf_equiv (S := F) (p := p)) i,
+congrFun (CPoly.degreeOf_equiv (S := F) (p := q)) i]
+rw [show fromCMvPolynomial (p - q)
+      = fromCMvPolynomial p - fromCMvPolynomial q from map_sub _ _]
+exact MvPolynomial.degreeOf_sub_le _ _ _
+
+/--
+Subtraction of two multilinear polynomials yields a multilinear polynomial
+-/
+theorem sub_multilinear_eq_multilinear
+{k : ℕ}
+{F : Type} [Field F] [BEq F] [LawfulBEq F]
+(p : CMvPolynomial k F)
+(q : CMvPolynomial k F)
+(pdeg : ∀ i, p.degreeOf i ≤ 1)
+(qdeg : ∀ i, q.degreeOf i ≤ 1)
+: (∀ i, (p - q).degreeOf i ≤ 1) := by
+intro i
+have step1 : (p - q).degreeOf i ≤ max (p.degreeOf i) (q.degreeOf i) :=
+  degreeOf_sub_le_max p q i
+have step2 : max (p.degreeOf i) (q.degreeOf i) ≤ 1 :=
+  max_le (pdeg i) (qdeg i)
+exact le_trans step1 step2
+
+theorem multilienear_extension_unique
+{k : ℕ}
+{F : Type} [Field F] [BEq F] [LawfulBEq F]
+(p : CMvPolynomial k F)
+(f : Index k → F)
+(hdeg : ∀ i, p.degreeOf i ≤ 1)
+(h : ∀ x : Index k, eval (toPoint x ) p = eval (toPoint x) (linearizeFunction f))
+: (p = linearizeFunction f) := by
+  rw [← sub_eq_zero]
+  apply multilinear_eq_zero_on_hypercube_is_zero_polynomial
+  . apply sub_multilinear_eq_multilinear
+    intro i
+    . apply hdeg
+    . exact degreeOf_linearizeFunction_le_one f
+  . simp only [eval_sub]
+    simp only [h]
+    intro X
+    field
+
 
 end CPoly.CMvPolynomial
