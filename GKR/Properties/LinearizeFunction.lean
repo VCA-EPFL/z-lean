@@ -40,6 +40,22 @@ induction (Finset.univ : Finset (Fin k)) using Finset.cons_induction with
     simp only [ih]
 
 
+/--
+Bridge from CMv's polynomial to the mathlibs one
+-/
+lemma degreeOf_sub_le_max
+{k : ℕ}
+{F : Type} [Field F] [BEq F] [LawfulBEq F]
+(p q : CMvPolynomial k F) (i : Fin k) :
+degreeOf i (p - q) ≤ max (degreeOf i p) (degreeOf i q) := by
+rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := p - q)) i,
+congrFun (CPoly.degreeOf_equiv (S := F) (p := p)) i,
+congrFun (CPoly.degreeOf_equiv (S := F) (p := q)) i]
+rw [show fromCMvPolynomial (p - q)
+      = fromCMvPolynomial p - fromCMvPolynomial q from map_sub _ _]
+exact MvPolynomial.degreeOf_sub_le _ _ _
+
+
 lemma eval_X
 {k : ℕ}
 {F : Type} [Field F] [BEq F] [LawfulBEq F]
@@ -89,36 +105,139 @@ theorem function_linearization_agrees
 (f : Index k → F) : ∀ m, f m = (linearizeFunction f).eval (toPoint m) := by
   intro m
   unfold linearizeFunction
-  rw [eval_linearizeAll_boolean]
-  . rw [ eval_sum_eq_sum_eval]
-    simp only [eval_mul]
-    simp only [eval_prod_eq_prod_eval]
-    simp only [eval_chi]
-    simp only [eval_C, Finset.prod_boole]
-    simp only [Finset.mem_univ, forall_const , ← funext_iff]
-    rw [Finset.sum_eq_single m]
-    . simp only [if_true, mul_one]
-    . intro _ _ bh
-      simp only [bh, if_false, mul_zero]
-    . intro h
-      absurd h (Finset.mem_univ m)
-      simp
-  . intro i
-    unfold toPoint
-    cases m i with
-    | true => simp
-    | false => simp
+  rw [eval_sum_eq_sum_eval]
+  simp only [eval_mul]
+  simp only [eval_prod_eq_prod_eval]
+  simp only [eval_chi]
+  simp only [eval_C, Finset.prod_boole]
+  simp only [Finset.mem_univ, forall_const, ← funext_iff]
+  rw [Finset.sum_eq_single m]
+  · simp only [if_true, mul_one]
+  · intro _ _ bh
+    simp only [bh, if_false, mul_zero]
+  · intro h
+    exact absurd (Finset.mem_univ m) h
+
 
 /--
-Our function is actually multilinear
-We get this directly from Linearize.lean
+Just a bridge between CompPoly's polynomaial and mathlibs
 -/
-theorem degreeOf_linearizeFunction_le_one
-    {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+lemma degreeOf_C_eq {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+    (c : F) (i : Fin k) :
+    degreeOf i (C c : CMvPolynomial k F) = 0 := by
+  rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := (C c : CMvPolynomial k F))) i,
+      CMvPolynomial.fromCMvPolynomial_C]
+  exact MvPolynomial.degreeOf_C _ _
+
+/--
+Also a bridge between comppoly and mathlib
+-/
+lemma degreeOf_mul_le' {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+    (p q : CMvPolynomial k F) (i : Fin k) :
+    degreeOf i (p * q) ≤ degreeOf i p + degreeOf i q := by
+  rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := p * q)) i,
+      congrFun (CPoly.degreeOf_equiv (S := F) (p := p)) i,
+      congrFun (CPoly.degreeOf_equiv (S := F) (p := q)) i]
+  rw [show fromCMvPolynomial (p * q)
+        = fromCMvPolynomial p * fromCMvPolynomial q from map_mul _ _]
+  exact MvPolynomial.degreeOf_mul_le _ _ _
+
+
+/--
+convert degree of product to sum of degrees, with bridges to mathlib
+-/
+lemma degreeOf_prod_le' {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+    {ι : Type} (s : Finset ι) (g : ι → CMvPolynomial k F) (i : Fin k) :
+    degreeOf i (∏ j ∈ s, g j) ≤ ∑ j ∈ s, degreeOf i (g j) := by
+  classical
+  induction s using Finset.cons_induction with
+  | empty =>
+    have h1 : degreeOf i (1 : CMvPolynomial k F) = 0 := by
+      rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := (1 : CMvPolynomial k F))) i,
+          CPoly.map_one]
+      simp
+    simp [h1]
+  | cons a t ha ih =>
+    rw [Finset.prod_cons, Finset.sum_cons]
+    exact le_trans (degreeOf_mul_le' _ _ i) (Nat.add_le_add_left ih _)
+
+/--
+Degree over a sum is a maximum degree of individual terms
+-/
+lemma degreeOf_sum_le' {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+    {ι : Type} (s : Finset ι) (g : ι → CMvPolynomial k F) (i : Fin k) :
+    degreeOf i (∑ j ∈ s, g j) ≤ s.sup (fun j => degreeOf i (g j)) := by
+  classical
+  induction s using Finset.cons_induction with
+  | empty =>
+    have h0 : degreeOf i (0 : CMvPolynomial k F) = 0 := by
+      rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := (0 : CMvPolynomial k F))) i,
+          CPoly.map_zero]
+      simp
+    simp [h0]
+  | cons a t ha ih =>
+    rw [Finset.sum_cons, Finset.sup_cons]
+    refine le_trans ?_ (max_le_max (le_refl _) ih)
+    rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := g a + ∑ j ∈ t, g j)) i,
+        congrFun (CPoly.degreeOf_equiv (S := F) (p := g a)) i,
+        congrFun (CPoly.degreeOf_equiv (S := F) (p := ∑ j ∈ t, g j)) i]
+    rw [show fromCMvPolynomial (g a + ∑ j ∈ t, g j)
+          = fromCMvPolynomial (g a) + fromCMvPolynomial (∑ j ∈ t, g j) from map_add _ _]
+    exact MvPolynomial.degreeOf_add_le _ _ _
+
+/--
+Also a bridge
+-/
+lemma degreeOf_X_le {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+    (i j : Fin k) :
+    degreeOf i (X j : CMvPolynomial k F) ≤ if j = i then 1 else 0 := by
+  rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := (X j : CMvPolynomial k F))) i,
+      CMvPolynomial.fromCMvPolynomial_X, MvPolynomial.degreeOf_X]
+  by_cases h : j = i
+  · simp [h]
+  · simp [h, Ne.symm h]
+
+/--
+Degree of chi
+-/
+lemma degreeOf_chi_le {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+    (i j : Fin k) (w : Index k) :
+    degreeOf i (chi j w F) ≤ if j = i then 1 else 0 := by
+  unfold chi
+  cases hw : w j
+  · refine le_trans (degreeOf_sub_le_max 1 (X j) i) ?_
+    have h1 : degreeOf i (1 : CMvPolynomial k F) = 0 := by
+      rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := (1 : CMvPolynomial k F))) i,
+          CPoly.map_one]
+      simp
+    simp only [h1]
+    exact max_le (by positivity) (degreeOf_X_le i j)
+  · simpa using degreeOf_X_le i j
+
+/--
+Degree of chi is a product of some stuff
+-/
+lemma degreeOf_chi_prod_le {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
+    (i : Fin k) (w : Index k) :
+    degreeOf i (∏ j, chi j w F) ≤ 1 := by
+  refine le_trans (degreeOf_prod_le' _ _ i) ?_
+  refine le_trans (Finset.sum_le_sum (fun j _ => degreeOf_chi_le i j w)) ?_
+  simp
+
+
+/--
+One of the capstone lemmas in this file
+Proves that our multilinear extension is actually multilinear
+-/
+theorem degreeOf_linearizeFunction_le_one {k : ℕ} {F : Type} [Field F] [BEq F] [LawfulBEq F]
     (f : Index k → F) (i : Fin k) :
     (linearizeFunction f).degreeOf i ≤ 1 := by
   unfold linearizeFunction
-  exact degreeOf_linearizeAll_le_one _ i
+  refine le_trans (degreeOf_sum_le' _ _ i) ?_
+  refine Finset.sup_le (fun w _ => ?_)
+  refine le_trans (degreeOf_mul_le' _ _ i) ?_
+  rw [degreeOf_C_eq]
+  simpa using degreeOf_chi_prod_le i w
 
 /--
 A helper lemma used for the proof of the below thing
@@ -182,20 +301,6 @@ induction k with
   rw [slice0, slice1]
   simp
 
-/--
-Bridge from CMv's polynomial to the mathlibs one
--/
-lemma degreeOf_sub_le_max
-{k : ℕ}
-{F : Type} [Field F] [BEq F] [LawfulBEq F]
-(p q : CMvPolynomial k F) (i : Fin k) :
-degreeOf i (p - q) ≤ max (degreeOf i p) (degreeOf i q) := by
-rw [congrFun (CPoly.degreeOf_equiv (S := F) (p := p - q)) i,
-congrFun (CPoly.degreeOf_equiv (S := F) (p := p)) i,
-congrFun (CPoly.degreeOf_equiv (S := F) (p := q)) i]
-rw [show fromCMvPolynomial (p - q)
-      = fromCMvPolynomial p - fromCMvPolynomial q from map_sub _ _]
-exact MvPolynomial.degreeOf_sub_le _ _ _
 
 /--
 Subtraction of two multilinear polynomials yields a multilinear polynomial
@@ -215,7 +320,7 @@ have step2 : max (p.degreeOf i) (q.degreeOf i) ≤ 1 :=
   max_le (pdeg i) (qdeg i)
 exact le_trans step1 step2
 
-theorem multilienear_extension_unique
+theorem multilinear_extension_unique
 {k : ℕ}
 {F : Type} [Field F] [BEq F] [LawfulBEq F]
 (p : CMvPolynomial k F)

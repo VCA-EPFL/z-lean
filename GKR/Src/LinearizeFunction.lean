@@ -13,7 +13,7 @@ namespace CPoly.CMvPolynomial
 /--
 xi (i) = x_i * w_i + (1 - x_i) * (1 - w_i)
 -/
-noncomputable def chi
+def chi
 {k : ℕ}
 (i : Fin k)
 (w : Index k)
@@ -25,14 +25,14 @@ noncomputable def chi
 /--
 Explicitly construct a multilinear polynomial agreeeing with a function over all hypercube points
 Formula is the same as Lemma 3.6. from Thaler's book
-noncomputable for compatibility with linearizeAll
+this used to be just a wrapper around linearizeAll,
+but it is now given in an explicit form
 -/
-noncomputable def linearizeFunction
+def linearizeFunction
 {F : Type} [Field F]
 [BEq F] [LawfulBEq F] -- needed for CMV polynomial
 {k : ℕ}
 (f : Index k → F) : CMvPolynomial k F :=
-linearizeAll (∑ w, C (f w)  * ∏ i, chi i w F)
--- something
+  ∑ w, C (f w) * ∏ i, chi i w F
 
 end CPoly.CMvPolynomial
